@@ -42,7 +42,7 @@ const DeleteImageFromCloudinary=async(fileurl)=>{
         if(fileurl){
             const deleteResult = await cloudinary.uploader
             .destroy(fileurl, { invalidate: true, resource_type:"image" })
-            console.log(` the delete result is ${deleteResult}`)
+            
         }
 
     }catch(error){
@@ -54,8 +54,8 @@ const DeleteVideoFromCloudinary=async(fileurl)=>{
     try{
         if(fileurl){
             const deleteResult = await cloudinary.uploader
-            .destroy(fileurl, { invalidate: true, resource_type:"image" })
-            console.log(` the delete result is ${deleteResult}`)
+            .destroy(fileurl, { invalidate: true, resource_type:"video" })
+          
         }
 
     }catch(error){

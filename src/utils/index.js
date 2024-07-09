@@ -9,4 +9,5 @@ export{
     asyncHandler,
     uploadOnCloundinary,
     DeleteImageFromCloudinary,
+    DeleteVideoFromCloudinary
 }

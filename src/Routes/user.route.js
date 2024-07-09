@@ -2,7 +2,6 @@ import { Router } from "express";
 import {upload} from "../middlewares/multer.middleware.js"
 import {ChangePassword, deleteUserAccount, getChannelProfile, getCurrentUser, getrefreshAccessToken, LoginUser, logoutUser, recoverPassword, RegisterUser, updateAavatar, UpdateCoverImage, updateProfile} from "../controllers/user.controler.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import multer from "multer";
 const router=Router()
 router.route("/register").post(upload.fields([
     {

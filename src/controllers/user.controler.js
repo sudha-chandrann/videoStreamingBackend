@@ -255,7 +255,11 @@ const UpdateCoverImage=asyncHandler(async(req,res)=>{
 const ChangePassword=asyncHandler(async(req,res)=>{
     try{
         const {oldPassword , newpassword}=req.body;
+        if(!oldPassword || !newpassword){
+            throw new ApiError(400," both oldPassword and newpassword are required")
+        }
         const user=await User.findById(req.user?._id)
+
         if(!user){
             throw new ApiError(404,"user not found")
         }
@@ -268,7 +272,7 @@ const ChangePassword=asyncHandler(async(req,res)=>{
             throw new ApiError(500,"Something went wrong during updating the password")
         }
         return res.status(200)
-        .json(new ApiResponse(200,{username:updatedUser.username,email:updatedUser.email},"password updated successfully"))
+        .json(new ApiResponse(200,{},"password updated successfully"))
 
     }
     catch(error){
@@ -278,21 +282,126 @@ const ChangePassword=asyncHandler(async(req,res)=>{
 const recoverPassword=asyncHandler(async(req,res)=>{
     try{
         const{email,username, newpassword}=req.body;
-        const user=await User.findOne({$or:[{username:username},{email:email}]})
+        if(!email || !username){
+            throw new ApiError(400,"email or username are required")
+        }
+        const user=await User.findOne({email:email,username:username})
         if(!user){
             throw new ApiError(404,"user not found")
+        }
+        if(!newpassword){
+            throw new ApiError(400,"new password is required")
         }
         const updatedUser=await User.findByIdAndUpdate(user._id,{password:newpassword},{new:true})
         if(!updatedUser){
             throw new ApiError(500,"Something went wrong during updating the password")
         }
         return res.status(200)
-        .json(new ApiResponse(200,{username:updatedUser.username,email:updatedUser.email},"password is changed successfully"))
+        .json(new ApiResponse(200,{},"password is changed successfully"))
     }
     catch{
         throw new ApiError(500,"Something went wrong during updating the password")
     }
 })
+const updateProfile=asyncHandler(async(req,res)=>{
+    try{
+        const {username,email}=req.body;
+        if(!username && !email){
+            throw new ApiError(400,"username or email are required")
+        }
+        const user=await User.findById(req.user?._id)
+        if(!user){
+            throw new ApiError(404,"user not found")
+        }
+        const updatedUser=await User.findByIdAndUpdate(req.user?._id,{username,email},{new:true})
+        if(!updatedUser){
+            throw new ApiError(500,"Something went wrong during updating the profile")
+            }
+            return res.status(200)
+            .json(new ApiResponse(200,{username:updatedUser.username,email:updatedUser.email},
+                "profile updated successfully"))
+                
+
+    }
+    catch(error){
+        throw new ApiError(500,"Something went wrong during updating the profile")
+    }
+})
+const getChannelProfile=asyncHandler(async(req,res)=>{
+    try{
+        const {username}=req.params;
+        if(!username){
+            throw new ApiError(400,"username is required")
+        }
+        const user=await User.findOne({username:username})
+        if(!user){
+            throw new ApiError(404,"user not found")
+        }
+        const Channel=await User.aggregate([
+            {
+                $match:{username:username}
+            },
+            {
+                $lookup:{
+                    from:"subscriptions",
+                    localField:"_id",
+                    foreignField:"subscriber",
+                    as:"subscribedto"
+                }
+            },
+            {
+                $lookup:{
+                    from:"subscriptions",
+                    localField:"_id",
+                    foreignField:"channel",
+                    as:"subscribers"
+                }
+            },
+            {
+                $lookup:{
+                    from:"videos",
+                    localField:"_id",
+                    foreignField:"owner",
+                    as:"videos"
+                }
+            },
+            {
+                $addFields:{
+                    ChannelsubscribedtoCount:{$size:"$subscribedto"},
+                    subscribersCount:{$size:"$subscribers"},
+                    isSubscribed:{
+                        $cond: {
+                            if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                            then: true,
+                            else: false
+                        }
+                    },
+                    videosCount:{$size:"$videos"},
+                }
+            },
+            {
+                $project: {
+                    _id:1,
+                    username:1,
+                    subscribersCount:1,
+                    ChannelsubscribedtoCount:1,
+                    isSubscribed:1,
+                    avatar:1,
+                    coverImage:1,
+                    videosCount:1,
+
+                }
+            }
+
+        ])
+
+    }
+    catch(error){
+        throw new ApiError(500,"Something went wrong during getting the profile")
+    }
+})
+
+
 export {
     RegisterUser,
     LoginUser,
@@ -303,5 +412,7 @@ export {
     updateAavatar,
     UpdateCoverImage,
     ChangePassword,
-    recoverPassword
+    recoverPassword,
+    updateProfile,
+    getChannelProfile
 }

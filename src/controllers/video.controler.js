@@ -12,10 +12,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
     if(!description){
         throw new ApiError(400,'Description is required',)
     }
-    const existingvideo = await Video.findOne({title:title,owner:req.user?._id})
-    if(existingvideo){
-        throw new ApiError(400,'Video already exists in your channel')
-    }
     const thumbnaillocalpath= req.files?.thumbnail[0]?.path;
     const videolocalpath= req.files?.videofile[0]?.path;
     if(!thumbnaillocalpath){
@@ -51,6 +47,141 @@ const publishAVideo = asyncHandler(async (req, res) => {
      )
     
 })
+const updateVideoThumbnail=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    if(!videoId){
+        throw new ApiError(400,"videoId is required")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"videoId is invalid")
+    }
+    const video=await Video.findById(videoId);
+    if(!video){
+        throw new ApiError(404,"video not found")
+    }
+    if(video.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(400,"you are not eligible to change the thumbnail ")
+    }
+    const thumbnaillocalpath=req.file?.path;
+    if(!thumbnaillocalpath){
+        throw new ApiError(400,"thumbnail file is required")
+    }
+    const thumbnail= await uploadOnCloundinary(thumbnaillocalpath);
+    if(!thumbnail){
+        throw new ApiError(500,"somethng went wrong during uploading the thumbnail")
+    }
+    await DeleteImageFromCloudinary(video.thumbnail);
+    const updatedVideo=await Video.findByIdAndUpdate(videoId,{
+        thumbnail:thumbnail.url
+        },{new:true})
+    if(!updatedVideo){
+        throw new ApiError(500,"somethng went wrong during updating the video")
+    } 
+    return  res.status(201).json(
+        new ApiResponse(200,{thumbnail:updatedVideo.thumbnail},"Video thumbnail is updated successfully")
+    )
+
+})
+const updateVideoDetails=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    const {title,description}=req.body;
+    if(!videoId){
+        throw new ApiError(400,"videoId is required")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"videoId is invalid")
+    }
+    const video=await Video.findById(videoId);
+    if(!video){
+        throw new ApiError(404,"video not found")
+    }
+    if(video.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(404,"you are not eligible to change the details of this video ")
+    }
+    if(!title && !description){
+        throw new ApiError(400,"title and description are required")
+    }
+    const updatedVideo=await Video.findByIdAndUpdate(videoId,{
+        title:title,
+        description:description
+        },{new:true})
+    
+    if(!updatedVideo){
+        throw new ApiError(500,"somethng went wrong during updating the video")
+    }
+    return  res.status(201).json(
+        new ApiResponse(200,{title:updatedVideo.title,description:updatedVideo.description},"Video details are updated successfully"))
+
+})
+const deleteVideo=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    if(!videoId){
+        throw new ApiError(400,"videoId is required")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"videoId is invalid")
+    }
+    const video=await Video.findById(videoId);
+    if(!video){
+        throw new ApiError(404,"video not found")
+    }
+    if(video.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(404,"you are not eligible to delete this video ")
+    }
+    await DeleteImageFromCloudinary(video.thumbnail);
+    await DeleteVideoFromCloudinary(video.videofile);
+    const deletedVideo= await Video.findByIdAndDelete(videoId)
+    if(!deletedVideo){
+        throw new ApiError(500,"something went wrong during deleting the video")
+    }
+    return res.status(200).json(
+        new ApiResponse(200,deletedVideo,"video deleted successfully")
+    )
+})
+const tooglePublishVideo=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    if(!videoId){
+        throw new ApiError(400,"videoId is required")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"videoId is invalid")
+    }
+    const video=await Video.findById(videoId);
+    if(!video){
+        throw new ApiError(404,"video not found")
+    }
+    if(video.owner.toString()!==req.user?._id.toString()){
+        throw new ApiError(404,"you are not eligible to publish or unpublish this video ")
+    }
+    video.isPublished=!video.isPublished;
+    await video.save({
+        validateBeforeSave:false
+    });
+    return res.status(200).json(
+        new ApiResponse(200,{isPublished:video.isPublished},"video published successfully")
+    )
+})
+const addviewsonvideo=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    if(!videoId){
+        throw new ApiError(400,"videoId is required")
+    }
+    if(!isValidObjectId(videoId)){
+        throw new ApiError(400,"videoId is invalid")
+    }
+    const video=await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(404,"video not found")
+    }
+    video.views+=1;
+    await video.save({
+        validateBeforeSave:false
+    })
+    return res.status(200).json(
+        new ApiResponse(200,{views:video.views},"video views updated successfully")
+        )
+})
+
 const getVideosPreviewById=asyncHandler(async(req,res)=>{
      const {videoId}=req.params;
      if(!videoId){
@@ -169,5 +300,10 @@ const getallUservideos=asyncHandler(async(req,res)=>{
 export {
     publishAVideo,
     getVideosPreviewById,
-    getallUservideos
+    getallUservideos,
+    updateVideoThumbnail,
+    updateVideoDetails,
+    deleteVideo,
+    tooglePublishVideo,
+    addviewsonvideo
 }

@@ -24,9 +24,15 @@ import UserRouter from "./Routes/user.route.js"
 import VideoRouter from "./Routes/video.route.js"
 import TweetRouter from "./Routes/tweet.route.js"
 import likeRouter from "./Routes/like.route.js"
+import dislikeRouter from "./Routes/dislike.route.js"
+import commentRouter from "./Routes/comment.route.js"
+import subscriptionRouter from "./Routes/subscription.route.js"
 app.use("/api/v1/users",UserRouter)
 app.use("/api/v1/videos",VideoRouter)
 app.use("/api/v1/tweets",TweetRouter)
 app.use("/api/v1/likes",likeRouter)
+app.use("/api/v1/dislikes",dislikeRouter)
+app.use("/api/v1/comments",commentRouter)
+app.use("/api/v1/subscriptions",subscriptionRouter)
 
 export {app}

@@ -381,7 +381,6 @@ const getChannelProfile=asyncHandler(async(req,res)=>{
             },
             {
                 $project: {
-                    _id:1,
                     username:1,
                     subscribersCount:1,
                     ChannelsubscribedtoCount:1,
@@ -394,6 +393,12 @@ const getChannelProfile=asyncHandler(async(req,res)=>{
             }
 
         ])
+        if(!Channel){
+            return res.status(404).send("Channel not found")
+        }
+        return res.status(200).json(
+            new ApiResponse(200,Channel," channel is fetched successfully")
+        )
 
     }
     catch(error){

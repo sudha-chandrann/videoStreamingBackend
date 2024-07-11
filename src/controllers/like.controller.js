@@ -12,17 +12,17 @@ const ToogleLikeVideo=asyncHandler(async(req,res)=>{
    
     let tooglelike=""
     if(!like){
-        const dislikevideo= await Dislike.findOne({video:videoId,dislikedBY:req.user?._id})
+        const dislikevideo= await Dislike.findOne({video:videoId,dislikedBy:req.user?._id})
         if(dislikevideo){
-            console.log("disliked video is removed ")
+            // console.log("disliked video is removed ")
             await Dislike.findByIdAndDelete(dislikevideo._id)
         }
         tooglelike= await Like.create({video:videoId,likedBy:req.user?._id})
-        console.log("like is produced")
+        // console.log("like is produced")
     }
     else{
         tooglelike= await Like.findByIdAndDelete(like._id)
-       console.log("like is removed ")
+    //    console.log("like is removed ")
     }
     if(!tooglelike){
         throw new ApiError(400,"Something went wrong")
@@ -38,17 +38,18 @@ const ToogleLikeTweet=asyncHandler(async(req,res)=>{
    
     let tooglelike=""
     if(!like){
-        const disliketweet= await Dislike.findOne({tweet:tweetId,dislikedBY:req.user?._id})
+        const disliketweet= await Dislike.findOne({tweet:tweetId,dislikedBy:req.user?._id})
         if(disliketweet){
-            console.log("disliked tweet is removed ")
+           
             await Dislike.findByIdAndDelete(disliketweet._id)
+           
         }
         tooglelike= await Like.create({tweet:tweetId,likedBy:req.user?._id})
-        console.log("like is produced")
+        
     }
     else{
         tooglelike= await Like.findByIdAndDelete(like._id)
-       console.log("like is removed ")
+    
     }
     if(!tooglelike){
         throw new ApiError(400,"Something went wrong")
@@ -64,17 +65,17 @@ const ToogleLikeComment=asyncHandler(async(req,res)=>{
    
     let tooglelike=""
     if(!like){
-        const dislikeComment= await Dislike.findOne({comment:CommentId,dislikedBY:req.user?._id})
+        const dislikeComment= await Dislike.findOne({comment:CommentId,dislikedBy:req.user?._id})
         if(dislikeComment){
-            console.log("disliked Comment is removed ")
+            // console.log("disliked Comment is removed ")
             await Dislike.findByIdAndDelete(dislikeComment._id)
         }
         tooglelike= await Like.create({comment:CommentId,likedBy:req.user?._id})
-        console.log("like is produced")
+        // console.log("like is produced")
     }
     else{
         tooglelike= await Like.findByIdAndDelete(like._id)
-       console.log("like is removed ")
+    //    console.log("like is removed ")
     }
     if(!tooglelike){
         throw new ApiError(400,"Something went wrong")

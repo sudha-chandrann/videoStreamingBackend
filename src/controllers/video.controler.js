@@ -161,6 +161,7 @@ const tooglePublishVideo=asyncHandler(async(req,res)=>{
         new ApiResponse(200,{isPublished:video.isPublished},"video published successfully")
     )
 })
+
 const addviewsonvideo=asyncHandler(async(req,res)=>{
     const {videoId}=req.params;
     if(!videoId){
@@ -182,7 +183,25 @@ const addviewsonvideo=asyncHandler(async(req,res)=>{
         )
 })
 
-const getVideosPreviewById=asyncHandler(async(req,res)=>{
+const getPublishedVideos=asyncHandler(async(req,res)=>{
+    try{
+       const videos=await Video.find({isPublished:true}).populate({
+        path:"owner",
+        select:"username avatar _id"
+       }).sort({createdAt:-1}).select("-description -isPublished")
+       if(!videos){
+         throw new ApiError(404,"no videos found")
+       }
+       return res.status(200).json(
+        new ApiResponse(200,videos,"videos fetched successfully")
+       )
+    }
+    catch(err){
+        throw new ApiError(400,err.message||"something went wrong")
+    }
+})
+
+const getVideoById=asyncHandler(async(req,res)=>{
      const {videoId}=req.params;
      if(!videoId){
         throw new ApiError(400,"Video Id is required")
@@ -190,47 +209,130 @@ const getVideosPreviewById=asyncHandler(async(req,res)=>{
      if(!isValidObjectId(videoId)){
         throw new ApiError(400,"Invalid Video Id")
      }
-     const video=await Video.findById(videoId)
+     const video=await Video.findById({_id:videoId, isPublished:true})
      if(!video){
         throw new ApiError(404,"Video not found")
      }
-     const videopreview=await Video.aggregate([
-        {
-            $match:{
-                _id:new mongoose.Types.ObjectId(videoId)
-            },
-        },{
-            $lookup:{
-                from:"users",
-                localField:"owner",
-                foreignField:"_id",
-                as:"owner"
+     const videopreview=await Video.aggregate(
+        [
+          {
+            $match: {
+              $and:
+                [{ _id:new mongoose.Types.ObjectId(videoId)},{isPublished:true}]
+              
             }
-        },
-        {
-             $addFields:{
-                video_owner:{$arrayElemAt:["$owner.username",0]},
-                owner_avatar:{$arrayElemAt:["$owner.coverImage",0]}
-                
+          },
+          {
+            $lookup: {
+              from: "likes",
+              localField: "_id",
+              foreignField: "video",
+              as: "likes"
+            }
+          },
+          {
+            $lookup: {
+              from: "dislikes",
+              localField: "_id",
+              foreignField: "video",
+              as: "dislikes"
+            }
+          },
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline:[
+                {
+                  $lookup:{
+                    from:"subscriptions",
+                     localField: "_id",
+                     foreignField: "channel",
+                     as: "subscribers",
+                  }
+                },
+                {
+                  $addFields:{
+                    issubscribed:{
+                      $cond:{
+                        if:{$in:[req.user?._id,"$subscribers.subscriber"]},
+                        then:true,
+                        else:false
+                      }
+                    },
+                    subscribersNo:{
+                      $size:"$subscribers"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            $addFields: {
+              likesNumber:{
+                $size:"$likes"
+              },
+              dislikesNumber:{
+                $size:"$dislikes"
+              },
+              isliked:{
+                $cond:{
+                  if:{$in:[req.user?._id,"$likes.likedBy"]},
+                  then:true,
+                  else:false
+                }
+              },
+              isdisliked:{
+                $cond:{
+                  if:{$in:[req.user?._id,"$dislikes.dislikedBy"]},
+                  then:true,
+                  else:false
+                }
+              },
+              owner_username:{
+                $arrayElemAt:["$owner.username",0]
+              },
+              owner_avatar:{
+                $arrayElemAt:["$owner.avatar",0]
+              },
+              isSubscribed:{
+                $arrayElemAt:["$owner.issubscribed",0]
+              },
+               SubscribersNumber:{
+              $arrayElemAt:["$owner.subscribersNo",0]
+               }
              }
-        },
-        
-        {
-            $project:{
-                title:1,
-                thumbnail:1,
-                _id:1,
-                video_owner:1,
-                views:1,
-                updatedAt:1,
-                owner_avatar:1,
-                videofile:1,
-                duration:1,
-                description:1
-
+           },
+          {
+            $project: {
+              videofile:1,
+              thumbnail:1,
+              duration:1,
+              owner_username:1,
+              owner_avatar:1,
+              SubscribersNumber:1,
+              isSubscribed:1,
+              isdisliked:1,
+              isliked:1,
+              dislikesNumber:1,
+              likesNumber:1,
+              title:1,
+              description:1,
+              views:1,
+              createdAt:1,
+              updatedAt:1,
+              
+              
+              
+              
             }
-        }
-     ])
+          }
+          
+          
+        ])
      if(!videopreview){
         throw new ApiError(404,"Video not found")
      }
@@ -250,60 +352,205 @@ const getallUservideos=asyncHandler(async(req,res)=>{
     //         select:"username avatar"
     //     }
     // ).select("-isPublished").sort({"createdAt":-1})
-    const videos=await User.aggregate([
+    const videos=await Video.aggregate([
         {
-            $match:{username:username}
-        },{
+         $match: {
+             $and:[{isPublished:true},{owner:user._id}]
+         }
+        },
+        {
+            $sort:{
+                views:-1
+            }
+        }
+     ])
+    // const videos=await User.aggregate([
+    //     {
+    //         $match:{username:username}
+    //     },{
+    //         $lookup:{
+    //             from:"videos",
+    //             localField:"_id",
+    //             foreignField:"owner",
+    //             as:"videos",
+    //             pipeline:[
+    //                 {
+    //                     $match:{isPublished:true}
+    //                 },
+    //                 {
+    //                      $sort:{
+    //                         createdAt:-1
+    //                      }
+    //                 },
+    //                 {
+    //                     $project:{
+    //                         title:1,
+    //                         thumbnail:1,
+    //                         _id:1,
+    //                         videofile:1,
+    //                         duration:1,
+    //                         description:1,
+    //                         views:1,
+    //                         createdAt:1,
+    //                         updatedAt:1
+    //                     }
+    //                 }
+    //             ]
+    //         }
+    //     },{
+    //         $project:{
+    //             username:1,
+    //             avatar:1,
+    //             videos:1
+
+    //         }
+    //     }
+    // ])
+    if(!videos){
+        throw new ApiError(404,"videos are not found")
+    }
+    res.status(200).json(new ApiResponse(200,videos,"User Videos"))
+
+})
+const getallvideoComments=asyncHandler(async(req,res)=>{
+    try{
+       const {videoId}=req.params;
+       if(!videoId|| !isValidObjectId(videoId)){
+         throw new ApiError(400,"invalid videoId")
+       }
+       const video= await Video.findById(videoId);
+       if(!video){
+        throw new ApiError(400,"video is not found ")
+       }
+       const comments=await Video.aggregate([
+        {
+            $match:{
+                _id:new mongoose.Types.ObjectId(videoId)
+            }
+        },
+        {
             $lookup:{
-                from:"videos",
+                from:"comments",
                 localField:"_id",
-                foreignField:"owner",
-                as:"videos",
+                foreignField:"video",
+                as :"comments",
                 pipeline:[
                     {
-                        $match:{isPublished:true}
+                        $lookup:{
+                            from:"users",
+                            localField:"owner",
+                            foreignField:"_id",
+                            as :"commenter",
+                        }
                     },
                     {
-                         $sort:{
-                            createdAt:-1
-                         }
+                        $lookup:{
+                            from:"likes",
+                            localField:"_id",
+                            foreignField:"comment",
+                            as :"likes",
+                        }
+                    },
+                    {
+                        $lookup:{
+                            from:"dislikes",
+                            localField:"_id",
+                            foreignField:"comment",
+                            as :"dislikes",
+                        } 
+                    },
+                    {
+                        $addFields:{
+                            likesCount:{
+                                $size:"$likes"
+                            },
+                            dislikesCount:{
+                                $size:"$dislikes"
+                            },
+                            isliked:{
+                                $cond:{
+                                    if:{$in:[req.user?._id,"$likes.likedBy"]},then:true,else:false
+                                }
+                            },
+                            isdisliked:{
+                                $cond:{
+                                    if:{$in:[req.user?._id,"$dislikes.dislikedBy"]},then:true,else:false
+                                }
+                            },
+                            commenter_username:{
+                                $arrayElemAt:["$commenter.username",0]
+                            },
+                            commenter_avatar:{
+                                $arrayElemAt:["$commenter.avatar",0]
+                            },
+                            commenter_id:{
+                                $arrayElemAt:["$commenter._id",0]
+                            }
+
+                        }
                     },
                     {
                         $project:{
-                            title:1,
-                            thumbnail:1,
-                            _id:1,
-                            videofile:1,
-                            duration:1,
-                            description:1,
-                            views:1,
+                            likesCount:1,
+                            dislikesCount:1,
+                            isliked:1,
+                            isdisliked:1,
+                            commenter_avatar:1,
+                            commenter_username:1,
+                            commenter_id:1,
+                            content:1,
                             createdAt:1,
+                            updatedAt:1
+                        }
+                    },
+                    {
+                        $sort:{
+                            createdAt:-1
                         }
                     }
                 ]
             }
-        },{
+        },
+        {
+            $addFields:{
+                commentsNumber:{
+                     $size:"$comments"
+                }
+            }
+        },
+        {
             $project:{
-                username:1,
-                avatar:1,
-                videos:1
-
+                _id:1,
+                comments:1,
+                commentsNumber:1,
+                
             }
         }
-    ])
-    if(!videos){
-        throw new ApiError(404,"videos are not found")
+       ])
+       if(!comments){
+        throw new ApiError(500,"comments are notn found ")
+       }
+       return res.status(200).json(
+        new ApiResponse(200,comments[0],"comments are fetched successfully")
+       )
     }
-    res.status(200).json(new ApiResponse(200,videos[0],"User Videos"))
-
+    catch(error){
+        throw new ApiError(404,error.message||"something went wrong during fetching the comments ")
+    }
 })
+
+
+
 export {
     publishAVideo,
-    getVideosPreviewById,
+    getVideoById,
     getallUservideos,
     updateVideoThumbnail,
     updateVideoDetails,
     deleteVideo,
     tooglePublishVideo,
-    addviewsonvideo
+    addviewsonvideo,
+    getallvideoComments,
+    getPublishedVideos
+  
 }

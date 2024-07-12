@@ -2,12 +2,23 @@ import {asyncHandler,ApiError,ApiResponse} from "../utils/index.js"
 import {Like} from "../models/like.model.js"
 import { isValidObjectId } from "mongoose"
 import {Dislike} from "../models/dislike.model.js"
+import {Video} from "../models/video.model.js"
 
 const ToogleDislikeVideo=asyncHandler(async(req,res)=>{
     const {videoId}=req.params
     if(!videoId || !isValidObjectId(videoId)){
         throw new ApiError(400,"Invalid Video Id")
     }
+
+    const video= await Video.findById({isPublished:true,video:videoId});
+    if(!video){
+        throw new ApiError(404,"Video Not Found")
+    }
+    if(req.user?._id.toString() ===  video.owner.toString()){
+        throw new ApiError(400," you can't dislike your own video")
+    }
+
+
     const dislike=await Dislike.findOne({video:videoId,dislikedBy:req.user?._id})
    
     let toogledislike=""
@@ -35,6 +46,16 @@ const ToogleDislikeTweet=asyncHandler(async(req,res)=>{
     if(!tweetId || !isValidObjectId(tweetId)){
         throw new ApiError(400,"Invalid tweet Id")
     }
+    const tweet= await Video.findById(tweetId);
+    if(!tweet){
+        throw new ApiError(404,"tweet Not Found")
+    }
+    if(req.user?._id.toString() ===  tweet.owner.toString()){
+        throw new ApiError(400," you can't dislike your own tweet")
+    }
+
+
+
     const dislike=await Dislike.findOne({tweet:tweetId,dislikedBy:req.user?._id})
    
     let toogledislike=""
@@ -62,7 +83,16 @@ const ToogledislikeComment=asyncHandler(async(req,res)=>{
     if(!CommentId || !isValidObjectId(CommentId)){
         throw new ApiError(400,"Invalid Comment Id")
     }
-    const dislike=await dislike.findOne({comment:CommentId,dislikedBy:req.user?._id})
+    const comment= await Video.findById(CommentId);
+    if(!comment){
+        throw new ApiError(404,"comment Not Found")
+    }
+    if(req.user?._id.toString() ===  comment.owner.toString()){
+        throw new ApiError(400," you can't dislike your own comment")
+    }
+
+
+    const dislike=await Dislike.findOne({comment:CommentId,dislikedBy:req.user?._id})
    
     let toogledislike=""
     if(!dislike){
@@ -76,7 +106,7 @@ const ToogledislikeComment=asyncHandler(async(req,res)=>{
         // console.log("dislike is produced")
     }
     else{
-        toogledislike= await dislike.findByIdAndDelete(dislike._id)
+        toogledislike= await Dislike.findByIdAndDelete(dislike._id)
     //    console.log("like is removed ")
     }
     if(!toogledislike){

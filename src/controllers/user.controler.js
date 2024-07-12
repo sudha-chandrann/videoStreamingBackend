@@ -330,6 +330,8 @@ const updateProfile=asyncHandler(async(req,res)=>{
 const getChannelProfile=asyncHandler(async(req,res)=>{
     try{
         const {username}=req.params;
+        
+        // console.log(req.user?._id)
         if(!username){
             throw new ApiError(400,"username is required")
         }
@@ -397,12 +399,12 @@ const getChannelProfile=asyncHandler(async(req,res)=>{
             return res.status(404).send("Channel not found")
         }
         return res.status(200).json(
-            new ApiResponse(200,Channel," channel is fetched successfully")
+        new ApiResponse(200,Channel,"channel profile is fetched successfuly ")
         )
 
     }
     catch(error){
-        throw new ApiError(500,"Something went wrong during getting the profile")
+        throw new ApiError(500,error.message||"Something went wrong during getting the profile")
     }
 })
 

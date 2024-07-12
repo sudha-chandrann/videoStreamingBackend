@@ -22,8 +22,8 @@ router.route("/delete").delete(verifyJWT,deleteUserAccount)
 router.route("/avatar").patch(verifyJWT,upload.single("avatar"),updateAavatar)
 router.route("/coverImage").patch(verifyJWT,upload.single("coverImage"), UpdateCoverImage);
 router.route("/changePassword").patch(verifyJWT,upload.none(),ChangePassword);
-router.route("/recoverPassword").patch(upload.none(),recoverPassword);
+router.route("/recoverPassword").patch(verifyJWT,upload.none(),recoverPassword);
 router.route("/updateProfile").patch(verifyJWT,upload.none(),updateProfile);
-router.route("/channelProfile/:username").get(getChannelProfile)
+router.route("/channelProfile/:username").get(verifyJWT,getChannelProfile)
   
 export default router

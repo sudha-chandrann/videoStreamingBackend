@@ -7,6 +7,10 @@ const toggleSubscription=asyncHandler(async(req,res)=>{
     if(!channelId || !isValidObjectId(channelId)){
         throw new ApiError(400,"Invalid Channel Id");
     }
+    if(req.user?._id.toString() ===  channelId.toString()){
+      throw new ApiError(400,"You can't subscribe to yourself")
+    }
+
     const subscription=await Subscription.findOne({channel:channelId,subscriber:req.user._id})
     if(!subscription){
         const subscribed=await Subscription.create({

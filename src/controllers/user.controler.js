@@ -1,6 +1,8 @@
 import {asyncHandler,ApiError,ApiResponse,uploadOnCloundinary, DeleteImageFromCloudinary} from "../utils/index.js"
 import {User} from "../models/user.model.js"
 import jwt from 'jsonwebtoken'
+import { isValidObjectId } from "mongoose";
+import { Video } from "../models/video.model.js";
 
 const RegisterUser= asyncHandler(async(req,res)=>{
     try{
@@ -407,8 +409,117 @@ const getChannelProfile=asyncHandler(async(req,res)=>{
         throw new ApiError(500,error.message||"Something went wrong during getting the profile")
     }
 })
+const getUserWatchhistory=asyncHandler(async(req,res)=>{
+    try{
+        const watchhistory=await User.aggregate([
+            {
+                $match:{
+                    _id:req.user?._id
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "watchHistory",
+                    foreignField: "_id",
+                    as: "watchhistoryvideos",
+                    pipeline:[
+                        {
+                            $lookup:{
+                                from:"users",
+                                localField:"owner",
+                                foreignField:"_id",
+                                as:"channel"
+                            }
+                        },
+                        {
+                            $addFields:{
+                                channel_name:{
+                                    $arrayElemAt:["$channel.username",0]
+                                },
+                                channel_avatar:{
+                                    $arrayElemAt:["$channel.avatar",0]
+                                },
+                                channel_id:{
+                                    $arrayElemAt:["$channel._id",0]
+                                }
+                            }
+                        },
+                        {
+                            $project:{
+                                channel_avatar:1,
+                                channel_name:1,
+                                channel_id:1,
+                                title:1,
+                                description:1,
+                                thumbnail:1,
+                                views:1,
+                                duration:1,
+                                videofile:1
+                            }
+                        }
+                    ]
+                }
+            },
+            { 
+                $project:{
+                    watchhistoryvideos:1
+                }
+               
+            }
+        ])
+        if(!watchhistory){
+            watchhistory = []
+        }
+        return res.status(200).json(
+            new ApiResponse(200,watchhistory[0].watchhistoryvideos,"watch history is fetched succesfully ")
+        )
+    }
+    catch(err){
+        throw new ApiError(500,err.message||"Something went wrong during getting the profile")
+    }
+})
+const addvideotoWatchHistory=asyncHandler(async(req,res)=>{
+
+     const {videoId}=req.params;
+     if(!videoId||!isValidObjectId(videoId)){
+         throw new ApiError(400,"invalid video id")
+     }
+     const video=await Video.findById(videoId)
+     if(!video){
+        throw new ApiError(404,"video not found")
+     }
+
+    await User.findByIdAndUpdate(req.user?._id,{$pull:{watchHistory:videoId}},{new:true})
+    const watchhistory= await User.findByIdAndUpdate(req.user?._id,{$push:{watchHistory:videoId}},
+    {new:true})
+    return res.status(200).json(
+        new ApiResponse(200,{},"video added to watch history")
+    )
+})
+const deleteVideofromwatchhistory=asyncHandler(async(req,res)=>{
+    const {videoId}=req.params;
+    if(!videoId||!isValidObjectId(videoId)){
+        throw new ApiError(400,"invalid video id")
+    }
+    const video=await Video.findById(videoId)
+    if(!video){
+       throw new ApiError(404,"video not found")
+    }
+
+   await User.findByIdAndUpdate(req.user?._id,{$pull:{watchHistory:videoId}},{new:true})
+   return res.status(200).json(new ApiResponse(200,{},"delete the video from the watch history"))
+})
+
+const deletewatchhistory=asyncHandler(async(req,res)=>{
+   const updatedwatchhistory= await User.findByIdAndUpdate(req.user?._id,{$set:{watchHistory:[]}},{new:true})
+   if(!updatedwatchhistory){
+         throw new ApiError(404,"watch history not found")
+   }
+    return res.status(200).json(new ApiResponse(200,updatedwatchhistory.watchHistory,"watch history is deleted"))
 
 
+})
 export {
     RegisterUser,
     LoginUser,
@@ -421,5 +532,9 @@ export {
     ChangePassword,
     recoverPassword,
     updateProfile,
-    getChannelProfile
+    getChannelProfile,
+    getUserWatchhistory,
+    addvideotoWatchHistory,
+    deleteVideofromwatchhistory,
+    deletewatchhistory
 }
